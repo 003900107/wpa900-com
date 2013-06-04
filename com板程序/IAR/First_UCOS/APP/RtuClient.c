@@ -23,8 +23,8 @@
 #include "RtuClient.h"
 #include "modbus_rtu_master.h"
 #include "bsp.h"
-
-
+#include "stdio.h"
+#include "string.h"
 /*
 *********************************************************************************************************
 *                                            LOCAL DEFINES
@@ -196,7 +196,7 @@ void  BSP_IntHandlerUSART1(void)
         }
         if(len==0)
         {
-          //printf("串口modbus响应！\n");
+          printf("modbus-rtu 响应长度：%d\n",rx_len);
           //uart1_send(rx_buf,3+rx_len);
           memset(rx_buf,0,50);
           rx_state=OUT;

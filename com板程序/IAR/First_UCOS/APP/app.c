@@ -1,30 +1,15 @@
 /*
 *********************************************************************************************************
-*                                              EXAMPLE CODE
 *
-*                          (c) Copyright 2003-2007; Micrium, Inc.; Weston, FL
+*                                               COM Board 
 *
-*               All rights reserved.  Protected by international copyright laws.
-*               Knowledge of the source code may NOT be used to develop a similar product.
-*               Please help us continue to provide the Embedded community with the finest
-*               software available.  Your honesty is greatly appreciated.
-*********************************************************************************************************
-*/
-
-/*
-*********************************************************************************************************
-*
-*                                            EXAMPLE CODE
-*
-*                                     ST Microelectronics STM32
-*                                              on the
-*
-*                                     Micrium uC-Eval-STM32F107
-*                                        Evaluation Board
+*                                               STM32F107
+*                                             ucos-II v2.92
+*                                              lwip v1.3.1
 *
 * Filename      : app.c
 * Version       : V1.00
-* Programmer(s) : EHS
+* Programmer(s) : yyj
 *********************************************************************************************************
 */
 
@@ -37,8 +22,7 @@
 #include <includes.h>
 #include "stm32f10x.h"
 #include "lwIP.h"
-#include "helloworld.h"
-
+#include "telnet.h"
 #include "TcpClient.h"
 
 
@@ -57,7 +41,7 @@
 
 static   OS_STK      AppTaskStartStk      [APP_TASK_START_STK_SIZE];
 static   OS_STK      AppTaskClientStk     [APP_TASK_START_STK_SIZE];
-static   OS_STK      AppTaskRtuClientStk  [APP_TASK_START_STK_SIZE];
+//static   OS_STK      AppTaskRtuClientStk  [APP_TASK_START_STK_SIZE];
 
 /*
 *********************************************************************************************************
@@ -84,12 +68,14 @@ int  main (void)
 {
     CPU_INT08U  err;
 
-
-    BSP_IntDisAll();                                            /* Disable all interrupts until we are ready to accept them */
-
-    OSInit();                                                   /* Initialize "uC/OS-II, The Real-Time Kernel"              */
-
-    OSTaskCreateExt(AppTaskStart,                               /* Create the start task                                    */
+    /* Disable all interrupts until we are ready to accept them */
+    BSP_IntDisAll();
+    
+    /* Initialize "uC/OS-II, The Real-Time Kernel" */
+    OSInit(); 
+    
+    /* Create the start task */
+    OSTaskCreateExt(AppTaskStart,                               
                     (void *)0,
                     (OS_STK *)&AppTaskStartStk[APP_TASK_START_STK_SIZE - 1],
                     APP_TASK_START_PRIO,
@@ -103,7 +89,8 @@ int  main (void)
     OSTaskNameSet(APP_TASK_START_PRIO, "Start Task", &err);
 #endif
 
-    OSStart();                                                  /* Start multitasking (i.e. give control to uC/OS-II)       */
+    /* Start multitasking (i.e. give control to uC/OS-II) */
+    OSStart();                                                  
 }
 
 
@@ -111,8 +98,7 @@ int  main (void)
 *********************************************************************************************************
 *                                          STARTUP TASK
 *
-* Description : This is an example of a startup task.  As mentioned in the book's text, you MUST
-*               initialize the ticker only once multitasking has started.
+* Description : This task will initialize hardware 、lwip 、tcp server and create other tasks.
 *
 * Arguments   : p_arg   is the argument passed to 'AppTaskStart()' by 'OSTaskCreate()'.
 *
@@ -120,32 +106,27 @@ int  main (void)
 *
 * Notes       : 1) The first line of code is used to prevent a compiler warning because 'p_arg' is not
 *                  used.  The compiler should not generate any code for this statement.
-*********************************************************************************************************
+********************************************************************************************************
 */
 
 static  void  AppTaskStart (void *p_arg)
 {
   (void)p_arg;
   
-  /*system initiate*/
+  /* Init BSP */
   BSP_Init();
   
-  /* Initilaize the LwIP satck */
-  Init_lwIP();
+  /* Init lwip stack 、add network interface */
+  lwIP_Init();
   
-  /* Initilaize the HelloWorld module */
-  HelloWorld_init();
+  /* Init Tcp server */
+  Telnet_init();
   
   /* Create application task */
   AppTaskCreate();   
   
   while(DEF_TRUE)
-  {
-    //Display_IPAddress();
-    
-    //USART_SendData(USART1,'a');
-    //USART_SendData(USART2,'b');
-     
+  { 
     OSTimeDlyHMSM(0, 0, 1, 0);
   }
 }
@@ -155,7 +136,7 @@ static  void  AppTaskStart (void *p_arg)
 *********************************************************************************************************
 *                                      CREATE APPLICATION TASKS
 *
-* Description:  This function creates the application tasks.
+* Description:  This function creates tasks : AppTaskClient 、AppTaskRtuClient.
 *
 * Arguments  :  none
 *

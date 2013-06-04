@@ -705,7 +705,7 @@
         </option>
         <option>
           <name>IlinkIcfFile</name>
-          <state>C:\Users\Administrator.WUQ6BOGNM6KUZK8\Desktop\com&#x677F;&#x7A0B;&#x5e8F;\IAR\BSP\stm32f10x_flash.icf</state>
+          <state>D:\&#x767e;&#x5eA6;&#x4e91;&#x540C;&#x6B65;&#x76D8;\github\wpa900-com\com&#x677F;&#x7A0B;&#x5e8F;\IAR\BSP\stm32f10x_flash.icf</state>
         </option>
         <option>
           <name>IlinkIcfFileSlave</name>
@@ -1800,13 +1800,13 @@
       <name>$PROJ_DIR$\APP\console.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\APP\helloworld.c</name>
-    </file>
-    <file>
       <name>$PROJ_DIR$\APP\RtuClient.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\APP\TcpClient.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\APP\telnet.c</name>
     </file>
   </group>
   <group>
@@ -1821,12 +1821,6 @@
       </file>
       <file>
         <name>$PROJ_DIR$\..\BSP\ENC28J60.C</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\BSP\stm3210c_eval_lcd.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\..\BSP\stm32_eval.c</name>
       </file>
     </group>
     <group>

@@ -116,11 +116,11 @@ sys_mbox_free(sys_mbox_t mbox)
 void
 sys_mbox_post(sys_mbox_t mbox, void *msg)
 {   
-    u8_t ubErr,i=0;
+    u8_t i=0;
     
     if( msg == NULL ) msg = (void*)&pvNullPointer;
     
-    while((i<10) && ((ubErr = OSQPost( mbox->pQ, msg)) != OS_ERR_NONE))
+    while((i<10) && ((OSQPost( mbox->pQ, msg)) != OS_ERR_NONE))
     {
     	i++;//if full, try 10 times
     	OSTimeDly(5);
@@ -131,11 +131,10 @@ sys_mbox_post(sys_mbox_t mbox, void *msg)
 // Try to post the "msg" to the mailbox.
 err_t sys_mbox_trypost(sys_mbox_t mbox, void *msg)
 {
-    u8_t ubErr;
     
     if(msg == NULL ) msg = (void*)&pvNullPointer;
     
-    if((ubErr = OSQPost( mbox->pQ, msg)) != OS_ERR_NONE)
+    if((OSQPost( mbox->pQ, msg)) != OS_ERR_NONE)
         return ERR_MEM;
 
     return ERR_OK;
@@ -274,8 +273,8 @@ sys_arch_sem_wait(sys_sem_t sem, u32_t timeout)
 void
 sys_sem_signal(sys_sem_t sem)
 {
-    u8_t ucErr;
-    ucErr = OSSemPost((OS_EVENT *)sem);
+    
+    OSSemPost((OS_EVENT *)sem);
     
     // May be called when a connection is already reset, should not check...
     // LWIP_ASSERT( "OSSemPost ", ucErr == OS_ERR_NONE );

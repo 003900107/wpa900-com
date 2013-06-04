@@ -221,11 +221,6 @@ low_level_1_init(struct netif *netif)
 static void
 low_level_2_init(struct netif *netif)
 {
-  CPU_INT08U  os_err;
-  os_err = os_err; /* prevent warning... */
-  
-  //SYS_ARCH_DECL_PROTECT(sr);
-    
   /* set MAC hardware address length */
   netif->hwaddr_len = ETHARP_HWADDR_LEN;
 
@@ -244,14 +239,6 @@ low_level_2_init(struct netif *netif)
   /* don't set NETIF_FLAG_ETHARP if this device is not an ethernet one */
   netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_LINK_UP;
 
-  //SYS_ARCH_PROTECT(sr);
-  //SYS_ARCH_UNPROTECT(sr);
-  
-  //os_err = OSTaskCreate( (void (*)(void *)) ethernetif_2_input,				
-	//                 (void          * ) 0,							
-	//                 (OS_STK        * )&App_Task_Ethernetif_Input_Stk[512 - 1],		
-	//                 (INT8U           ) 15  );
-  
 }
 
 /**

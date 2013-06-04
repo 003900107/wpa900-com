@@ -1,30 +1,15 @@
 /*
 *********************************************************************************************************
-*                                     MICIRUM BOARD SUPPORT PACKAGE
 *
-*                             (c) Copyright 2007; Micrium, Inc.; Weston, FL
+*                                            COM BOARD
 *
-*               All rights reserved.  Protected by international copyright laws.
-*               Knowledge of the source code may NOT be used to develop a similar product.
-*               Please help us continue to provide the Embedded community with the finest
-*               software available.  Your honesty is greatly appreciated.
-*********************************************************************************************************
-*/
-
-/*
-*********************************************************************************************************
+*                                            STM32F107
+*                                            UCOS V2.92
+*                                            LWIP V1.3.1
 *
-*                                        BOARD SUPPORT PACKAGE
-*
-*                                     ST Microelectronics STM32
-*                                              on the
-*
-*                                     Micrium uC-Eval-STM32F107
-*                                        Evaluation Board
-*
-* Filename      : bsp.h
+* Filename      : app.c
 * Version       : V1.00
-* Programmer(s) : EHS
+* Programmer(s) : yyj
 *********************************************************************************************************
 */
 
@@ -80,7 +65,7 @@
 #include  <bsp_i2c.h>
 #include  <bsp_stlm75.h>
 
-
+#include "stm32f10x.h"
 /*
 *********************************************************************************************************
 *                                          GPIO PIN DEFINITIONS
@@ -457,6 +442,9 @@ void         BSP_LED_Toggle              (CPU_INT08U     led);
 
 CPU_BOOLEAN  BSP_StatusRd                (CPU_INT08U  id);
 
+
+unsigned char	SPI3_ReadWrite(unsigned char writedat);
+void USART_send(USART_TypeDef* USARTx,uint8_t *buf,uint8_t len);
 /*
 *********************************************************************************************************
 *                                             MODULE END

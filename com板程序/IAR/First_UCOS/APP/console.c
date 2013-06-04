@@ -4,6 +4,7 @@
 #include "stdint.h"
 #include "string.h"
 #include <stdbool.h>
+#include "stdio.h"
 
 #define GET      "get"
 #define SET      "set"
@@ -27,8 +28,7 @@ bool ShellCmdCmp(char *a,const char *b,uint8_t len)
 
 uint32_t CmdMatch(char *a,char *b,uint8_t len)
 {
-  uint8_t i,j;
-  
+
   if(ShellCmdCmp(a,GET,strlen(GET)))
   {
     shellstate = GETPARA;

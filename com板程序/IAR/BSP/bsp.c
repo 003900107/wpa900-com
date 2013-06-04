@@ -1,32 +1,18 @@
 /*
 *********************************************************************************************************
-*                                     MICIRUM BOARD SUPPORT PACKAGE
 *
-*                             (c) Copyright 2007; Micrium, Inc.; Weston, FL
+*                                            COM BOARD
 *
-*               All rights reserved.  Protected by international copyright laws.
-*               Knowledge of the source code may NOT be used to develop a similar product.
-*               Please help us continue to provide the Embedded community with the finest
-*               software available.  Your honesty is greatly appreciated.
+*                                            STM32F107
+*                                            UCOS V2.92
+*                                            LWIP V1.3.1
+*
+* Filename      : app.c
+* Version       : V1.00
+* Programmer(s) : yyj
 *********************************************************************************************************
 */
 
-/*
-*********************************************************************************************************
-*
-*                                        BOARD SUPPORT PACKAGE
-*
-*                                     ST Microelectronics STM32
-*                                              on the
-*
-*                                     Micrium uC-Eval-STM32F107
-*                                        Evaluation Board
-*
-* Filename      : bsp.c
-* Version       : V1.00
-* Programmer(s) : EHS
-*********************************************************************************************************
-*/
 
 /*
 *********************************************************************************************************
@@ -35,17 +21,19 @@
 */
 
 #define  BSP_MODULE
-#include <bsp.h>
+#include "bsp.h"
 #include "includes.h"
 #include <usart.h>
-#include <stm3210c_eval_lcd.h>
 #include "stm32_eth.h"
 #include "enc28j60.h"
+
+
 /*
 *********************************************************************************************************
 *                                            LOCAL DEFINES
 *********************************************************************************************************
 */
+
 #define  USART1_232
 //#define  USART1_485
 #define  USART2_232
@@ -53,28 +41,25 @@
 #define  USART3_232
 //#define  USART3_485
 
-/*
-*********************************************************************************************************
-*                                           LOCAL CONSTANTS
-*********************************************************************************************************
-*/
-
-#define  BSP_LED_START_BIT  (13 - 1)                            /* LEDs[3:1] are sequentially connected to PTD[15:13].  */
-
 #define PHY_ADDRESS       0x00
 #define RMII_MODE
+
+#ifdef __GNUC__
+  /* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
+     set to 'Yes') calls __io_putchar() */
+  #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+#else
+  #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+#endif /* __GNUC__ */
+
+
 /*
 *********************************************************************************************************
 *                                          LOCAL DATA TYPES
 *********************************************************************************************************
 */
-uint8_t macaddress_2[6] = {0x32,0x12,0x35,0x11,0x01,0x51};
 
-/*
-*********************************************************************************************************
-*                                            LOCAL TABLES
-*********************************************************************************************************
-*/
+uint8_t macaddress_2[6] = {0x32,0x12,0x35,0x11,0x01,0x51};
 
 
 /*
@@ -91,9 +76,6 @@ CPU_INT32U  BSP_CPU_ClkFreq_MHz;
 *********************************************************************************************************
 */
 
-static  void  BSP_LED_Init   (void);
-static  void  BSP_StatusInit (void);
-
 void USART_1_Init(void);
 void USART_2_Init(void);
 void USART_3_Init(void);
@@ -104,13 +86,6 @@ void Ethernet_2_Init(void);
 void SPI_Initiate(void);
 void NVIC_Configuration(void);
 
-#ifdef __GNUC__
-  /* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
-     set to 'Yes') calls __io_putchar() */
-  #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
-#else
-  #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
-#endif /* __GNUC__ */
 
 /*
 *********************************************************************************************************
@@ -170,19 +145,6 @@ void NVIC_Configuration(void);
 * Caller(s)   : Application.
 *
 * Note(s)     : (1) This function SHOULD be called before any other BSP function is called.
-*
-*               (2) CPU instruction / data tracing requires the use of the following pins :
-*                   (a) (1) Aysynchronous     :  PB[3]
-*                       (2) Synchronous 1-bit :  PE[3:2]
-*                       (3) Synchronous 2-bit :  PE[4:2]
-*                       (4) Synchronous 4-bit :  PE[6:2]
-*
-*                   (b) The uC-Eval board MAY utilize the following pins depending on the application :
-*                       (1) PE[5], MII_INT
-*                       (1) PE[6], SDCard_Detection
-*
-*                   (c) The application may wish to adjust the trace bus width depending on I/O
-*                       requirements.
 *********************************************************************************************************
 */
 
@@ -190,244 +152,366 @@ void  BSP_Init (void)
 {
    SystemInit();
    
-   /*systick设置*/
+   /* Config systick */
    RCC_ClocksTypeDef RCC_Clocks;
    RCC_GetClocksFreq(&RCC_Clocks);
    SysTick_Config(RCC_Clocks.HCLK_Frequency / (INT32U)OS_TICKS_PER_SEC); /*RCC_Clocks.SYSCLK_Frequency*/
    
-   /*GPIO时钟*/
+   /* Config GPIO clock */
    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB
                           | RCC_APB2Periph_GPIOC | RCC_APB2Periph_GPIOD
                             | RCC_APB2Periph_GPIOE | RCC_APB2Periph_AFIO
                               ,ENABLE);
    
-   /*USART时钟*/
+   /* Config USART1 and USART2 clock */
    RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1,ENABLE);
    RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2 | RCC_APB1Periph_USART3,ENABLE);
    
-   /*USART1初始化*/
+   /* Init USART_1 */
    USART_1_Init();
    
-   /*USART2初始化*/
+   /* Init USART_2 */
    USART_2_Init();
    
-   /*USART3初始化*/
+   /* Init USART_3 */
    USART_3_Init();
    
-   /*Ethernet_1初始化*/
+   /* Init Ethernet_1 */
    Ethernet_1_Init();
    
-   /*Ethernet_2初始化*/
+   /* Init Ethernet_2 */
    Ethernet_2_Init();
    
-   /*NVIC设置*/
+   /* Config NVIC */
    NVIC_Configuration();
 }
 
+
+/*
+*********************************************************************************************************
+*                                               USART_1_Init()
+*
+* Description : Initialize USART1.
+*
+* Argument(s) : none.
+*
+* Return(s)   : none.
+*
+* Note(s)     : 232/485 config.
+*********************************************************************************************************
+*/
+
 void USART_1_Init(void)
 {
-   /*config GPIO of USART1*/
    GPIO_InitTypeDef GPIO_InitStructure;
    
 #ifdef USART1_232
-   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_9;          /*PA9 for 232 Tx*/
+   /*PA9 for 232 Tx*/
+   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_9;          
    GPIO_InitStructure.GPIO_Speed=GPIO_Speed_50MHz;
    GPIO_InitStructure.GPIO_Mode=GPIO_Mode_AF_PP;
    GPIO_Init(GPIOA,&GPIO_InitStructure);
    
-   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_10;         /*PA10 for 232 Rx*/
+   /*PA10 for 232 Rx*/
+   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_10;         
    GPIO_InitStructure.GPIO_Speed=GPIO_Speed_50MHz;
    GPIO_InitStructure.GPIO_Mode=GPIO_Mode_IN_FLOATING;
    GPIO_Init(GPIOA,&GPIO_InitStructure);
    
    /*Initiate USART1*/
    USART_InitTypeDef USART_InitStructure;
-   
    USART_InitStructure.USART_BaudRate=9600;
    USART_InitStructure.USART_WordLength=USART_WordLength_8b;
    USART_InitStructure.USART_StopBits=USART_StopBits_1;
    USART_InitStructure.USART_Parity=USART_Parity_No;
    USART_InitStructure.USART_HardwareFlowControl=USART_HardwareFlowControl_None;
    USART_InitStructure.USART_Mode=USART_Mode_Rx | USART_Mode_Tx;
-   
    USART_Init(USART1,&USART_InitStructure);
    
-   USART_ITConfig(USART1,USART_IT_RXNE,ENABLE);
 #else  //USART1_485
-   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_8;          /*PA8 for 485 DIR*/
+   /*PA8 for 485 DIR*/
+   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_8;          
    GPIO_InitStructure.GPIO_Speed=GPIO_Speed_50MHz;
    GPIO_InitStructure.GPIO_Mode=GPIO_Mode_Out_PP;
    GPIO_Init(GPIOA,&GPIO_InitStructure);
    
-   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_9;          /*PA9 for 485 Tx*/
+   /*PA9 for 485 Tx*/
+   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_9;          
    GPIO_InitStructure.GPIO_Speed=GPIO_Speed_50MHz;
    GPIO_InitStructure.GPIO_Mode=GPIO_Mode_AF_PP;
    GPIO_Init(GPIOA,&GPIO_InitStructure);
    
-   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_10;         /*PA10 for 485 Rx*/
+   /*PA10 for 485 Rx*/
+   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_10;         
    GPIO_InitStructure.GPIO_Speed=GPIO_Speed_50MHz;
    GPIO_InitStructure.GPIO_Mode=GPIO_Mode_IN_FLOATING;
    GPIO_Init(GPIOA,&GPIO_InitStructure);
    
    /*Initiate USART1*/
    USART_InitTypeDef USART_InitStructure;
-   
    USART_InitStructure.USART_BaudRate=9600;
    USART_InitStructure.USART_WordLength=USART_WordLength_8b;
    USART_InitStructure.USART_StopBits=USART_StopBits_1;
    USART_InitStructure.USART_Parity=USART_Parity_No;
    USART_InitStructure.USART_HardwareFlowControl=USART_HardwareFlowControl_None;
    USART_InitStructure.USART_Mode=USART_Mode_Rx | USART_Mode_Tx;
-   
    USART_Init(USART1,&USART_InitStructure);
 #endif
    
+   /* Ebable Rx interrupt */
+   USART_ITConfig(USART1,USART_IT_RXNE,ENABLE);
+   
+   /* Enable USART1 */
    USART_Cmd(USART1,ENABLE);
 }
 
+
+/*
+*********************************************************************************************************
+*                                               USART_2_Init()
+*
+* Description : Initialize USART2.
+*
+* Argument(s) : none.
+*
+* Return(s)   : none.
+*
+* Note(s)     : 232/485 config.
+*********************************************************************************************************
+*/
+
 void USART_2_Init(void)
 {
-   /*config GPIO of USART2*/
    GPIO_InitTypeDef GPIO_InitStructure;
    
+   /* Remap USART2 */
    GPIO_PinRemapConfig(GPIO_Remap_USART2,ENABLE);
    
 #ifdef USART2_232
-   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_5;          /*PD5 for 232 Tx*/
+   /*PD5 for 232 Tx*/
+   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_5;          
    GPIO_InitStructure.GPIO_Speed=GPIO_Speed_50MHz;
    GPIO_InitStructure.GPIO_Mode=GPIO_Mode_AF_PP;
    GPIO_Init(GPIOD,&GPIO_InitStructure);
    
-   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_6;          /*PD6 for 232 Rx*/
+   /*PD6 for 232 Rx*/
+   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_6;          
    GPIO_InitStructure.GPIO_Speed=GPIO_Speed_50MHz;
    GPIO_InitStructure.GPIO_Mode=GPIO_Mode_IN_FLOATING;
    GPIO_Init(GPIOD,&GPIO_InitStructure);
    
    /*Initiate USART2*/
    USART_InitTypeDef USART_InitStructure;
-   
    USART_InitStructure.USART_BaudRate=9600;
    USART_InitStructure.USART_WordLength=USART_WordLength_8b;
    USART_InitStructure.USART_StopBits=USART_StopBits_1;
    USART_InitStructure.USART_Parity=USART_Parity_No;
    USART_InitStructure.USART_HardwareFlowControl=USART_HardwareFlowControl_None;
    USART_InitStructure.USART_Mode=USART_Mode_Rx | USART_Mode_Tx;
-   
    USART_Init(USART2,&USART_InitStructure);
    
-   USART_ITConfig(USART2,USART_IT_RXNE,ENABLE);
-   
 #else  //USART2_485
-   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_5;          /*PD5 for 485 Tx*/
+   /*PD5 for 485 Tx*/
+   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_5;          
    GPIO_InitStructure.GPIO_Speed=GPIO_Speed_50MHz;
    GPIO_InitStructure.GPIO_Mode=GPIO_Mode_AF_PP;
    GPIO_Init(GPIOD,&GPIO_InitStructure);
    
-   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_6;          /*PD6 for 485 Rx*/
+   /*PD6 for 485 Rx*/
+   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_6;          
    GPIO_InitStructure.GPIO_Speed=GPIO_Speed_50MHz;
    GPIO_InitStructure.GPIO_Mode=GPIO_Mode_IN_FLOATING;
    GPIO_Init(GPIOD,&GPIO_InitStructure);
    
-   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_7;          /*PD7 for 485 DIR*/
+   /*PD7 for 485 DIR*/
+   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_7;          
    GPIO_InitStructure.GPIO_Speed=GPIO_Speed_50MHz;
    GPIO_InitStructure.GPIO_Mode=GPIO_Mode_Out_PP;
    GPIO_Init(GPIOD,&GPIO_InitStructure);
    
    /*Initiate USART2*/
    USART_InitTypeDef USART_InitStructure;
-   
    USART_InitStructure.USART_BaudRate=9600;
    USART_InitStructure.USART_WordLength=USART_WordLength_8b;
    USART_InitStructure.USART_StopBits=USART_StopBits_1;
    USART_InitStructure.USART_Parity=USART_Parity_No;
    USART_InitStructure.USART_HardwareFlowControl=USART_HardwareFlowControl_None;
    USART_InitStructure.USART_Mode=USART_Mode_Rx | USART_Mode_Tx;
-   
    USART_Init(USART2,&USART_InitStructure);
+   
 #endif
    
+   /* Enable Rx interrupt */
+   USART_ITConfig(USART2,USART_IT_RXNE,ENABLE);
+   
+   /* Enable USART2 */
    USART_Cmd(USART2,ENABLE);
 }
 
+
+/*
+*********************************************************************************************************
+*                                               USART_3_Init()
+*
+* Description : Initialize USART3.
+*
+* Argument(s) : none.
+*
+* Return(s)   : none.
+*
+* Note(s)     : 232/485 config.
+*********************************************************************************************************
+*/
+
 void USART_3_Init(void)
 {
-   /*config GPIO of USART3*/
    GPIO_InitTypeDef GPIO_InitStructure;
    
+   /* FullRemap USART3 */
    GPIO_PinRemapConfig(GPIO_FullRemap_USART3,ENABLE);
    
 #ifdef USART3_232
-   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_8;          /*PD8 for 232 Tx*/
+   /*PD8 for 232 Tx*/
+   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_8;          
    GPIO_InitStructure.GPIO_Speed=GPIO_Speed_50MHz;
    GPIO_InitStructure.GPIO_Mode=GPIO_Mode_AF_PP;
    GPIO_Init(GPIOD,&GPIO_InitStructure);
    
-   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_9;          /*PD9 for 232 Rx*/
+   /*PD9 for 232 Rx*/
+   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_9;          
    GPIO_InitStructure.GPIO_Speed=GPIO_Speed_50MHz;
    GPIO_InitStructure.GPIO_Mode=GPIO_Mode_IN_FLOATING;
    GPIO_Init(GPIOD,&GPIO_InitStructure);
    
    /*Initiate USART3*/
    USART_InitTypeDef USART_InitStructure;
-   
    USART_InitStructure.USART_BaudRate=9600;
    USART_InitStructure.USART_WordLength=USART_WordLength_8b;
    USART_InitStructure.USART_StopBits=USART_StopBits_1;
    USART_InitStructure.USART_Parity=USART_Parity_No;
    USART_InitStructure.USART_HardwareFlowControl=USART_HardwareFlowControl_None;
    USART_InitStructure.USART_Mode=USART_Mode_Rx | USART_Mode_Tx;
-   
    USART_Init(USART3,&USART_InitStructure);
    
-   USART_ITConfig(USART3,USART_IT_RXNE,ENABLE);
-   
 #else  //USART3_485
-   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_8;          /*PD8 for 485 Tx*/
+   /*PD8 for 485 Tx*/
+   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_8;          
    GPIO_InitStructure.GPIO_Speed=GPIO_Speed_50MHz;
    GPIO_InitStructure.GPIO_Mode=GPIO_Mode_AF_PP;
    GPIO_Init(GPIOD,&GPIO_InitStructure);
    
-   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_9;          /*PD9 for 485 Rx*/
+   /*PD9 for 485 Rx*/
+   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_9;          
    GPIO_InitStructure.GPIO_Speed=GPIO_Speed_50MHz;
    GPIO_InitStructure.GPIO_Mode=GPIO_Mode_IN_FLOATING;
    GPIO_Init(GPIOD,&GPIO_InitStructure);
    
-   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_10;          /*PD10 for 485 DIR*/
+   /*PD10 for 485 DIR*/
+   GPIO_InitStructure.GPIO_Pin=GPIO_Pin_10;          
    GPIO_InitStructure.GPIO_Speed=GPIO_Speed_50MHz;
    GPIO_InitStructure.GPIO_Mode=GPIO_Mode_Out_PP;
    GPIO_Init(GPIOD,&GPIO_InitStructure);
    
    /*Initiate USART3*/
    USART_InitTypeDef USART_InitStructure;
-   
    USART_InitStructure.USART_BaudRate=9600;
    USART_InitStructure.USART_WordLength=USART_WordLength_8b;
    USART_InitStructure.USART_StopBits=USART_StopBits_1;
    USART_InitStructure.USART_Parity=USART_Parity_No;
    USART_InitStructure.USART_HardwareFlowControl=USART_HardwareFlowControl_None;
    USART_InitStructure.USART_Mode=USART_Mode_Rx | USART_Mode_Tx;
-   
    USART_Init(USART3,&USART_InitStructure);
+   
 #endif
    
+   /* Enable Rx interrupt */
+   USART_ITConfig(USART3,USART_IT_RXNE,ENABLE);
+   
+   /* Enable USART3 */
    USART_Cmd(USART3,ENABLE);
 }
 
-void Ethernet_1_Init(void)
+/*
+*********************************************************************************************************
+*                                               USART_send()
+*
+* Description : This function sends array by USARTx.
+*
+* Argument(s) : USARTx     is one USART for sending array:
+*                           
+*                          USART1   first USART
+*                          USART2   second USART
+*                          USART3   third USART
+*
+*               buf        is a pointer to array.      
+*
+*               len        is the length of array.
+*
+* Return(s)   : none.
+*
+* Note(s)     : none.
+*
+*********************************************************************************************************
+*/
+
+void USART_send(USART_TypeDef* USARTx,uint8_t *buf,uint8_t len)
 {
-   RCC_AHBPeriphClockCmd(RCC_AHBPeriph_ETH_MAC | RCC_AHBPeriph_ETH_MAC_Tx |
-                        RCC_AHBPeriph_ETH_MAC_Rx, ENABLE);
-   
-   
-   /* Configure the GPIO ports */
-   Ethernet_1_GPIOConfig();
-  
-   /* Configure the Ethernet peripheral */
-   Ethernet_1_ETHConfig();
+  while(len--)
+  {
+    /* Transmit Data */
+    USART_SendData(USARTx, *buf);
+    
+    /* loop while transmiting is not finished */
+    while (USART_GetFlagStatus(USARTx, USART_FLAG_TC) == RESET)
+    {}
+    
+    /* point to next data */
+    buf++;
+  }
 }
 
 
-/*RMII以太网管脚配置参考手册说明*/
+/*
+*********************************************************************************************************
+*                                               Ethernet_1_Init()
+*
+* Description : Initialize Ethernet_1.
+*
+* Argument(s) : none.
+*
+* Return(s)   : none.
+*********************************************************************************************************
+*/
+
+void Ethernet_1_Init(void)
+{
+  /* Enable clock */
+  RCC_AHBPeriphClockCmd(RCC_AHBPeriph_ETH_MAC | RCC_AHBPeriph_ETH_MAC_Tx |
+                        RCC_AHBPeriph_ETH_MAC_Rx, ENABLE);
+   
+   
+  /* Configure the GPIO ports */
+  Ethernet_1_GPIOConfig();
+  
+  /* Configure the Ethernet peripheral */
+  Ethernet_1_ETHConfig();
+}
+
+
+/*
+*********************************************************************************************************
+*                                            Ethernet_1_GPIOConfig()
+*
+* Description : This function configure GPIO of Ethernet_1.
+*
+* Argument(s) : none.
+*
+* Return(s)   : none.
+*
+* Note(s)     : RMII mode between MAC and PHY.
+*********************************************************************************************************
+*/
+
 void Ethernet_1_GPIOConfig(void)
 {
   GPIO_InitTypeDef GPIO_InitStructure;
@@ -468,9 +552,6 @@ void Ethernet_1_GPIOConfig(void)
   - ETH_MII_RXD1 / ETH_RMII_RXD1: PC5
  */
 
-  /* ETHERNET pins remapp in STM3210C-EVAL board: RX_DV and RxD[3:0] */
-  //GPIO_PinRemapConfig(GPIO_Remap_ETH, ENABLE);
-
   /* Configure PA1、PA7 as input */
   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1 | GPIO_Pin_7;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
@@ -482,14 +563,20 @@ void Ethernet_1_GPIOConfig(void)
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
   GPIO_Init(GPIOC, &GPIO_InitStructure); 
-
-  /* MCO pin configuration--------------------------------------- */
-  /* Configure MCO (PA8) as alternate function push-pull */
-  //GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;
-  //GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  //GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-  //GPIO_Init(GPIOA, &GPIO_InitStructure);
 }
+
+
+/*
+*********************************************************************************************************
+*                                            Ethernet_1_ETHConfig()
+*
+* Description : This function configure MAC controller module in STM32F107.
+*
+* Argument(s) : none.
+*
+* Return(s)   : none.
+*********************************************************************************************************
+*/
 
 void Ethernet_1_ETHConfig(void)
 {
@@ -505,16 +592,6 @@ void Ethernet_1_ETHConfig(void)
 #elif defined RMII_MODE  /* Mode RMII with STM3210C-EVAL */
   GPIO_ETH_MediaInterfaceConfig(GPIO_ETH_MediaInterface_RMII);
 
-  /* Set PLL3 clock output to 50MHz (25MHz /5 *10 =50MHz) */
-  //RCC_PLL3Config(RCC_PLL3Mul_10);
-  /* Enable PLL3 */
-  //RCC_PLL3Cmd(ENABLE);
-  /* Wait till PLL3 is ready */
-  //while (RCC_GetFlagStatus(RCC_FLAG_PLL3RDY) == RESET)
-  //{}
-
-  /* Get PLL3 clock on PA8 pin (MCO) */
-  //RCC_MCOConfig(RCC_MCO_PLL3CLK);
 #endif
 
   /* Reset ETHERNET on AHB Bus */
@@ -565,34 +642,56 @@ void Ethernet_1_ETHConfig(void)
 
   /* Configure Ethernet */
   ETH_Init(&ETH_InitStructure, PHY_ADDRESS);
-  //if(1 == ETH_Init(&ETH_InitStructure, PHY_ADDRESS))
-    //STM_EVAL_LEDOff(LED1);
-  //else
-    //STM_EVAL_LEDOff(LED2);
-    //printf(" Ethernet_1_ETHConfig() ETH_ERROR");
   
   /* Enable the Ethernet Rx Interrupt */
+  /* Receive net packets : interrupt or polling .*/
   //ETH_DMAITConfig(ETH_DMA_IT_NIS | ETH_DMA_IT_R, ENABLE);
 }
 
+
+/*
+*********************************************************************************************************
+*                                            Ethernet_2_Init()
+*
+* Description : Initialize Ethernet_2.
+*
+* Argument(s) : none.
+*
+* Return(s)   : none.
+*********************************************************************************************************
+*/
+
 void Ethernet_2_Init(void)
 {
-  /*SPI初始化*/
+  /* Initialize SPI */
   SPI_Initiate();
    
-  /*初始化ENC28J60*/
+  /* Initialize ENC28J60 */
   enc28j60Init(macaddress_2);
 }
+
+
+/*
+*********************************************************************************************************
+*                                            SPI_Initiate()
+*
+* Description : Initialize SPI.
+*
+* Argument(s) : none.
+*
+* Return(s)   : none.
+*********************************************************************************************************
+*/
 
 void SPI_Initiate(void)
 {
   GPIO_InitTypeDef GPIO_InitStructure;
   SPI_InitTypeDef  SPI_InitStructure;
   
-  /*SPI3时钟*/
+  /* Enable clock */
   RCC_APB1PeriphClockCmd(RCC_APB1Periph_SPI3, ENABLE);
   
-  /*SPI3接口配置：*/
+  /*SPI3 GPIO ：*/
   /*PA15： SPI3_ENC_CS
     PC10： SPI3_ENC_SCK
     PC11： SPI3_ENC_MISO
@@ -600,9 +699,10 @@ void SPI_Initiate(void)
     PD0：  SPI3_WOL
     PD1：  SPI3_INT  */
   
-  /*分配给ENC28J60芯片的SPI3_ENC_CS信号配置*/
+  /* Disable JTAG to free PA15 */
   GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable,ENABLE);
   
+  /* PA15 for SPI3_ENC_CS */
   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_15;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
@@ -610,7 +710,7 @@ void SPI_Initiate(void)
   
   GPIO_SetBits(GPIOA, GPIO_Pin_15);
   
-  /*配置SPI3_ENC_SCK、SPI3_ENC_MISO、SPI3_ENC_MOSI*/
+  /*PC10 PC11 PC12 for SPI3_ENC_SCK、SPI3_ENC_MISO、SPI3_ENC_MOSI*/
   GPIO_PinRemapConfig(GPIO_Remap_SPI3, ENABLE);
   
   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10 | GPIO_Pin_11 | GPIO_Pin_12;
@@ -618,28 +718,26 @@ void SPI_Initiate(void)
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
   GPIO_Init(GPIOC, &GPIO_InitStructure);
   
-  /*配置中断SPI3_INT*/
+  /*PD1 for SPI3_INT*/
   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;	
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD;   
   GPIO_Init(GPIOD, &GPIO_InitStructure);
   
+  /* Interrupt from ENC28J60 */
   //EXTI_InitTypeDef EXTI_InitStructure;
 
-   
-    /* Connect  EXTI1 Line to PD1 */
-    //GPIO_EXTILineConfig(GPIO_PortSourceGPIOD, GPIO_PinSource1);  
+  /* Connect  EXTI1 Line to PD1 */
+  //GPIO_EXTILineConfig(GPIO_PortSourceGPIOD, GPIO_PinSource1);  
 
-    /* Configure EXTI1 line */
-    //EXTI_InitStructure.EXTI_Line = EXTI_Line1;
-    //EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
-    //EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Falling;  
-   //EXTI_InitStructure.EXTI_LineCmd = ENABLE;
-    //EXTI_Init(&EXTI_InitStructure);
+  /* Configure EXTI1 line */
+  //EXTI_InitStructure.EXTI_Line = EXTI_Line1;
+  //EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
+  //EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Falling;  
+  //EXTI_InitStructure.EXTI_LineCmd = ENABLE;
+  //EXTI_Init(&EXTI_InitStructure);
   
-  //SPI_I2S_ITConfig(SPI3,SPI_I2S_IT_RXNE,ENABLE);  该中断是SPI接收缓冲区中断，并非ENC28J60给的中断
-  
-  /* SPI3接口模式参数配置 */ 
+  /* SPI3 param config */ 
   SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
   SPI_InitStructure.SPI_Mode = SPI_Mode_Master;
   SPI_InitStructure.SPI_DataSize = SPI_DataSize_8b;
@@ -651,36 +749,54 @@ void SPI_Initiate(void)
   SPI_InitStructure.SPI_CRCPolynomial = 7;
   SPI_Init(SPI3, &SPI_InitStructure);
   
-  /*使能SPI3接口*/
+  /* Enable SPI3 */
   SPI_Cmd(SPI3, ENABLE); 
 }
+
+
+/*
+*********************************************************************************************************
+*                                            NVIC_Configuration()
+*
+* Description : Configure NVIC.
+*
+* Argument(s) : none.
+*
+* Return(s)   : none.
+*********************************************************************************************************
+*/
 
 void NVIC_Configuration(void)
 {
    NVIC_InitTypeDef   NVIC_InitStructure;
    
+   /* Sets the vector table location and Offset */
    NVIC_SetVectorTable(NVIC_VectTab_FLASH, 0x0);
    
    NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
    
+   /* Set USART1 interrupt priority */
    //NVIC_InitStructure.NVIC_IRQChannel = USART1_IRQn;
    //NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 3;
    //NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
    //NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
    //NVIC_Init(&NVIC_InitStructure);
    
+   /* Set USART2 interrupt priority */
    //NVIC_InitStructure.NVIC_IRQChannel = USART2_IRQn;
    //NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 3;
    //NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
    //NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
    //NVIC_Init(&NVIC_InitStructure);
    
+   /* Set ETH_1 interrupt priority */
    NVIC_InitStructure.NVIC_IRQChannel = ETH_IRQn;
    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 2;
    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
    NVIC_Init(&NVIC_InitStructure); 
    
+   /* Set ETH_2 interrupt priority */
    NVIC_InitStructure.NVIC_IRQChannel = EXTI1_IRQn;
    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 2;
    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
@@ -688,21 +804,33 @@ void NVIC_Configuration(void)
    NVIC_Init(&NVIC_InitStructure); 
 }
 
-//SPI3读写一字节数据
+
+/*
+*********************************************************************************************************
+*                                            SPI3_ReadWrite()
+*
+* Description : This function reads/writes one byte from/to ENC28J60.
+*
+* Argument(s) : Data to write.
+*
+* Return(s)   : Data read from ENC28J60.
+*********************************************************************************************************
+*/
+
 unsigned char	SPI3_ReadWrite(unsigned char writedat)
-	{
-	/* Loop while DR register in not emplty */
-	while(SPI_I2S_GetFlagStatus(SPI3,SPI_I2S_FLAG_TXE) == RESET);
+{
+  /* Loop while DR register in not emplty */
+  while(SPI_I2S_GetFlagStatus(SPI3,SPI_I2S_FLAG_TXE) == RESET);
 	
-	/* Send byte through the SPI1 peripheral */
-	SPI_I2S_SendData(SPI3, writedat);
+  /* Send byte through the SPI1 peripheral */
+  SPI_I2S_SendData(SPI3, writedat);
 	
-	/* Wait to receive a byte */
-	while(SPI_I2S_GetFlagStatus(SPI3, SPI_I2S_FLAG_RXNE) == RESET);
+  /* Wait to receive a byte */
+  while(SPI_I2S_GetFlagStatus(SPI3, SPI_I2S_FLAG_RXNE) == RESET);
 	
-	/* Return the byte read from the SPI bus */
-	return SPI_I2S_ReceiveData(SPI3);
-	}
+  /* Return the byte read from the SPI bus */
+  return SPI_I2S_ReceiveData(SPI3);
+}
 
 /*
 *********************************************************************************************************
@@ -724,7 +852,6 @@ CPU_INT32U  BSP_CPU_ClkFreq (void)
 {
     RCC_ClocksTypeDef  rcc_clocks;
 
-
     RCC_GetClocksFreq(&rcc_clocks);
 
     return ((CPU_INT32U)rcc_clocks.HCLK_Frequency);
@@ -733,190 +860,16 @@ CPU_INT32U  BSP_CPU_ClkFreq (void)
 
 /*
 *********************************************************************************************************
-*********************************************************************************************************
-*                                              LED FUNCTIONS
-*********************************************************************************************************
-*********************************************************************************************************
-*/
-
-/*
-*********************************************************************************************************
-*                                             BSP_LED_Init()
+*                                            PUTCHAR_PROTOTYPE
 *
-* Description : Initialize the I/O for the LEDs
+* Description : Retargets the C library printf function to the USART.
 *
-* Argument(s) : none.
+* Argument(s) : None.
 *
-* Return(s)   : none.
-*
-* Caller(s)   : BSP_Init().
-*
-* Note(s)     : none.
+* Return(s)   : None.
 *********************************************************************************************************
 */
 
-static  void  BSP_LED_Init (void)
-{
-    GPIO_InitTypeDef  gpio_init;
-
-
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD, ENABLE);
-
-    gpio_init.GPIO_Pin   = BSP_GPIOD_LEDS;
-    gpio_init.GPIO_Speed = GPIO_Speed_50MHz;
-    gpio_init.GPIO_Mode  = GPIO_Mode_Out_PP;
-
-    GPIO_Init(GPIOD, &gpio_init);
-}
-
-
-/*
-*********************************************************************************************************
-*                                             BSP_LED_On()
-*
-* Description : Turn ON any or all the LEDs on the board.
-*
-* Argument(s) : led     The ID of the LED to control:
-*
-*                       0    turns ON ALL the LEDs
-*                       1    turns ON user LED1  on the board
-*                       2    turns ON user LED2  on the board
-*                       3    turns ON user LED3  on the board
-*
-* Return(s)   : none.
-*
-* Caller(s)   : Application.
-*
-* Note(s)     : none.
-*********************************************************************************************************
-*/
-
-void  BSP_LED_On (CPU_INT08U led)
-{
-    switch (led) {
-        case 0:
-             GPIO_SetBits(GPIOD, BSP_GPIOD_LEDS);
-             break;
-
-        case 1:
-             GPIO_SetBits(GPIOD, BSP_GPIOD_LED1);
-             break;
-
-        case 2:
-             GPIO_SetBits(GPIOD, BSP_GPIOD_LED2);
-             break;
-
-        case 3:
-             GPIO_SetBits(GPIOD, BSP_GPIOD_LED3);
-             break;
-
-        default:
-             break;
-    }
-}
-
-
-/*
-*********************************************************************************************************
-*                                              BSP_LED_Off()
-*
-* Description : Turn OFF any or all the LEDs on the board.
-*
-* Argument(s) : led     The ID of the LED to control:
-*
-*                       0    turns OFF ALL the LEDs
-*                       1    turns OFF user LED1  on the board
-*                       2    turns OFF user LED2  on the board
-*                       3    turns OFF user LED3  on the board
-*
-* Return(s)   : none.
-*
-* Caller(s)   : Application.
-*
-* Note(s)     : none.
-*********************************************************************************************************
-*/
-
-void  BSP_LED_Off (CPU_INT08U led)
-{
-    switch (led) {
-        case 0:
-             GPIO_ResetBits(GPIOD, BSP_GPIOD_LEDS);
-             break;
-
-        case 1:
-             GPIO_ResetBits(GPIOD, BSP_GPIOD_LED1);
-             break;
-
-        case 2:
-             GPIO_ResetBits(GPIOD, BSP_GPIOD_LED2);
-             break;
-
-        case 3:
-             GPIO_ResetBits(GPIOD, BSP_GPIOD_LED3);
-             break;
-
-        default:
-             break;
-    }
-}
-
-
-/*
-*********************************************************************************************************
-*                                            BSP_LED_Toggle()
-*
-* Description : TOGGLE any or all the LEDs on the board.
-*
-* Argument(s) : led     The ID of the LED to control:
-*
-*                       0    TOGGLE ALL the LEDs
-*                       1    TOGGLE user LED1  on the board
-*                       2    TOGGLE user LED2  on the board
-*                       3    TOGGLE user LED3  on the board
-*
-* Return(s)   : none.
-*
-* Caller(s)   : Application.
-*
-* Note(s)     : none.
-*********************************************************************************************************
-*/
-
-void  BSP_LED_Toggle (CPU_INT08U led)
-{
-    CPU_INT32U  pins;
-
-
-    switch (led) {
-        case 0:
-             pins =  GPIO_ReadOutputData(GPIOD);
-             pins ^= BSP_GPIOD_LEDS;
-             GPIO_SetBits(  GPIOD,   pins  & BSP_GPIOD_LEDS);
-             GPIO_ResetBits(GPIOD, (~pins) & BSP_GPIOD_LEDS);
-             break;
-
-        case 1:
-        case 2:
-        case 3:
-            pins = GPIO_ReadOutputData(GPIOD);
-            if ((pins & (1 << (led + BSP_LED_START_BIT))) == 0) {
-                 GPIO_SetBits(  GPIOD, (1 << (led + BSP_LED_START_BIT)));
-             } else {
-                 GPIO_ResetBits(GPIOD, (1 << (led + BSP_LED_START_BIT)));
-             }
-            break;
-
-        default:
-             break;
-    }
-}
-
-/**
-  * @brief  Retargets the C library printf function to the USART.
-  * @param  None
-  * @retval None
-  */
 PUTCHAR_PROTOTYPE
 {
   /* Place your implementation of fputc here */
@@ -930,74 +883,6 @@ PUTCHAR_PROTOTYPE
   return ch;
 }
 
-/*
-*********************************************************************************************************
-*                                            BSP_StatusInit()
-*
-* Description : Initialize the status port(s)
-*
-* Argument(s) : none.
-*
-* Return(s)   : none.
-*
-* Caller(s)   : BSP_Init()
-*
-* Note(s)     : none.
-*********************************************************************************************************
-*/
-
-static  void  BSP_StatusInit (void)
-{
-    GPIO_InitTypeDef  GPIO_InitStructure;
-
-
-    GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_5;             /* PB5 is used to read the status of the LM75 */
-    GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_IN_FLOATING;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-    GPIO_Init(GPIOB, &GPIO_InitStructure);
-}
-
-
-/*
-*********************************************************************************************************
-*                                            BSP_StatusRd()
-*
-* Description : Get the current status of a status input
-*
-* Argument(s) : id    is the status you want to get.
-*
-* Return(s)   : DEF_ON    if the status is asserted
-*               DEF_OFF   if the status is negated
-*
-* Caller(s)   : application
-*
-* Note(s)     : none.
-*********************************************************************************************************
-*/
-
-CPU_BOOLEAN  BSP_StatusRd (CPU_INT08U  id)
-{
-    CPU_BOOLEAN  bit_val;
-
-
-    switch (id) {
-        case 1:
-             bit_val = GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_5);
-             return (bit_val);
-
-        default:
-             return ((CPU_BOOLEAN)DEF_OFF);
-    }
-}
-
-
-/*
-*********************************************************************************************************
-*********************************************************************************************************
-*                                           OS PROBE FUNCTIONS
-*********************************************************************************************************
-*********************************************************************************************************
-*/
 
 /*
 *********************************************************************************************************
